@@ -319,7 +319,7 @@ const getVerifiedJWTPayload = async (token: string, options: DMESDKConfiguration
         retry: options.retryOptions,
     });
 
-    const { keys } = jkuResponse.body;
+    const { keys } = jkuResponse.body as any;
     const pem = keys
         .filter((key: any) => key.kid === kid)
         .map((key: any) => key.pem);
