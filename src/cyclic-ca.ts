@@ -9,7 +9,7 @@ import get from "lodash.get";
 import isPlainObject from "lodash.isplainobject";
 import { URLSearchParams } from "url";
 import { getRandomAlphaNumeric, hashSha256 } from "./crypto";
-import { JWTVerificationError, OAuthError, ParameterValidationError, SDKInvalidError, SDKVersionInvalidError } from "./errors";
+import { JWTVerificationError, OAuthError, TypeValidationError, SDKInvalidError, SDKVersionInvalidError } from "./errors";
 import { net } from "./net";
 import { getClientPrivateShareDeepLink } from "./paths";
 import { DMESDKConfiguration, Session } from "./sdk";
@@ -31,7 +31,7 @@ const authorizeOngoingAccess = async (
 
     if (details !== undefined && !isPlainObject(details)) {
         // tslint:disable-next-line:max-line-length
-        throw new ParameterValidationError("Details should be a plain object that contains the properties applicationId, contractId, privateKey and redirectUri");
+        throw new TypeValidationError("Details should be a plain object that contains the properties applicationId, contractId, privateKey and redirectUri");
     }
 
     const {accessToken, applicationId, contractId, privateKey, redirectUri} = details;
@@ -40,7 +40,7 @@ const authorizeOngoingAccess = async (
         !isValidString(redirectUri) || !privateKey
     ) {
         // tslint:disable-next-line:max-line-length
-        throw new ParameterValidationError("Details should be a plain object that contains the properties applicationId, contractId, privateKey and redirectUri");
+        throw new TypeValidationError("Details should be a plain object that contains the properties applicationId, contractId, privateKey and redirectUri");
     }
 
     if (accessToken) {
@@ -123,9 +123,8 @@ const preauthorize = async (
         const response = await net.post(`${options.baseUrl}/oauth/authorize`, {
             headers: {
                 Authorization: `Bearer ${jwt}`,
-                accept: "application/json",
             },
-            json: true,
+            responseType: "json",
             retry: options.retryOptions,
         });
 
@@ -140,14 +139,14 @@ const preauthorize = async (
             throw error;
         }
 
-        const errorCode = get(error, "body.error.code");
+        const errorCode = get(error.response.body, "error.code");
 
         if (errorCode === "SDKInvalid") {
-            throw new SDKInvalidError(get(error, "body.error.message"));
+            throw new SDKInvalidError(get(error.response.body, "error.message"));
         }
 
         if (errorCode === "SDKVersionInvalid") {
-            throw new SDKVersionInvalidError(get(error, "body.error.message"));
+            throw new SDKVersionInvalidError(get(error.response.body, "error.message"));
         }
 
         throw error;
@@ -163,7 +162,7 @@ const exchangeCodeForToken = async (
 
     if (config !== undefined && !isPlainObject(config)) {
         // tslint:disable-next-line:max-line-length
-        throw new ParameterValidationError("Details should be a plain object that contains the properties applicationId, contractId, privateKey and redirectUri");
+        throw new TypeValidationError("Details should be a plain object that contains the properties applicationId, contractId, privateKey and redirectUri");
     }
 
     const {applicationId, contractId, privateKey, redirectUri} = config;
@@ -172,12 +171,12 @@ const exchangeCodeForToken = async (
         !isValidString(redirectUri) || !privateKey
     ) {
         // tslint:disable-next-line:max-line-length
-        throw new ParameterValidationError("Details should be a plain object that contains the properties applicationId, contractId, privateKey and redirectUri");
+        throw new TypeValidationError("Details should be a plain object that contains the properties applicationId, contractId, privateKey and redirectUri");
     }
 
     if (!isValidString(codeVerifier) || !isValidString(authorizationCode)) {
         // tslint:disable-next-line:max-line-length
-        throw new ParameterValidationError("Code verifier and authorization code cannot be empty");
+        throw new TypeValidationError("Code verifier and authorization code cannot be empty");
     }
 
     const jwt: string = sign(
@@ -201,9 +200,8 @@ const exchangeCodeForToken = async (
         const response = await net.post(`${options.baseUrl}/oauth/token`, {
             headers: {
                 Authorization: `Bearer ${jwt}`,
-                accept: "application/json",
             },
-            json: true,
+            responseType: "json",
             retry: options.retryOptions,
         });
 
@@ -246,10 +244,9 @@ const triggerDataQuery = async (
     await net.post(url, {
         headers: {
             Authorization: `Bearer ${jwt}`,
-            Accept: "application/json",
-            "Content-Type": "application/json",
+            "Content-Type": "application/json", // NOTE: we might not need this
         },
-        json: true,
+        responseType: "json",
     });
 
     return token;
@@ -282,10 +279,9 @@ const refreshToken = async (
         const response = await net.post(url, {
             headers: {
                 Authorization: `Bearer ${jwt}`,
-                Accept: "application/json",
-                "Content-Type": "application/json",
+                "Content-Type": "application/json", // NOTE: we might not need this
             },
-            json: true,
+            responseType: "json",
         });
 
         const payload = await getVerifiedJWTPayload(get(response.body, "token"), options);
@@ -315,11 +311,15 @@ const refreshToken = async (
 
 const getVerifiedJWTPayload = async (token: string, options: DMESDKConfiguration): Promise<any> => {
     const decodedToken: any = decode(token, {complete: true});
-    const {header} = decodedToken;
-    const {jku, kid} = header;
+    const { header}  = decodedToken;
+    const { jku, kid } = header;
 
-    const jkuResponse = await net.get(jku, { json: true, retry: options.retryOptions });
-    const {keys} = jkuResponse.body;
+    const jkuResponse = await net.get(jku, {
+        responseType: "json",
+        retry: options.retryOptions,
+    });
+
+    const { keys } = jkuResponse.body;
     const pem = keys
         .filter((key: any) => key.kid === kid)
         .map((key: any) => key.pem);

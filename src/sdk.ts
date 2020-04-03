@@ -11,18 +11,22 @@ import * as zlib from "zlib";
 import { GetFileListResponse, GetFileResponse, LibrarySyncStatus } from "./api-responses";
 import { decryptData } from "./crypto";
 import { authorizeOngoingAccess, exchangeCodeForToken } from "./cyclic-ca";
-import { ParameterValidationError, SDKInvalidError, SDKVersionInvalidError } from "./errors";
+import { TypeValidationError, SDKInvalidError, SDKVersionInvalidError } from "./errors";
 import { net } from "./net";
 import { getAuthorizeUrl } from "./paths";
 import { getCreatePostboxUrl, getPostboxImportUrl, pushDataToPostbox, PushedFileMeta } from "./postbox";
 import sdkVersion from "./sdk-version";
-import {
-    CAScope, DMESDKConfiguration, FileMeta, GetSessionDataResponse, OngoingAccessAuthorization,
-    OngoingAccessConfiguration, Session,
+import type {
+    CAScope,
+    FileMeta,
+    GetSessionDataResponse,
+    OngoingAccessAuthorization,
+    OngoingAccessConfiguration,
 } from "./types";
-import {
-    isConfigurationValid, isPlainObject, isSessionValid, isValidString, sleep,
-} from "./utils";
+import { isPlainObject, isValidString } from "./utils";
+import { assertIsSession, Session } from "./types/session";
+import { sleep } from "./sleep";
+import { DMESDKConfiguration, assertIsDMESDKConfiguration } from "./types/dme-sdk-configuration";
 
 type FileSuccessResult = { data: any } & FileMeta;
 type FileErrorResult = { error: Error } & FileMeta;
@@ -36,10 +40,10 @@ const _establishSession = async (
     scope?: CAScope,
 ): Promise<Session> => {
     if (!isValidString(appId)) {
-        throw new ParameterValidationError("Parameter appId should be a non empty string");
+        throw new TypeValidationError("Parameter appId should be a non empty string");
     }
     if (!isValidString(contractId)) {
-        throw new ParameterValidationError("Parameter contractId should be a non empty string");
+        throw new TypeValidationError("Parameter contractId should be a non empty string");
     }
     const url = `${options.baseUrl}/permission-access/session`;
 
@@ -53,8 +57,7 @@ const _establishSession = async (
     try {
 
         const { body, headers } = await net.post(url, {
-            json: true,
-            body: {
+            json: {
                 appId,
                 contractId,
                 scope,
@@ -63,6 +66,7 @@ const _establishSession = async (
                     compression: "gzip",
                 },
             },
+            responseType: "json",
             retry: options.retryOptions,
         });
 
@@ -71,7 +75,8 @@ const _establishSession = async (
             console.warn(`[digime-js-sdk@${sdkVersion}][${headers["x-digi-sdk-status"]}] ${headers["x-digi-sdk-status-message"]}`);
         }
 
-        // TODO: Session validation
+        assertIsSession(body);
+
         return body;
 
     } catch (error) {
@@ -80,14 +85,14 @@ const _establishSession = async (
             throw error;
         }
 
-        const errorCode = get(error, "body.error.code");
+        const errorCode = get(error.response.body, "error.code");
 
         if (errorCode === "SDKInvalid") {
-            throw new SDKInvalidError(get(error, "body.error.message"));
+            throw new SDKInvalidError(get(error.response.body, "error.message"));
         }
 
         if (errorCode === "SDKVersionInvalid") {
-            throw new SDKVersionInvalidError(get(error, "body.error.message"));
+            throw new SDKVersionInvalidError(get(error.response.body, "error.message"));
         }
 
         throw error;
@@ -95,14 +100,11 @@ const _establishSession = async (
 };
 
 const _getGuestAuthorizeUrl = (session: Session, callbackUrl: string, options: DMESDKConfiguration) => {
-    if (!isSessionValid(session)) {
-        throw new ParameterValidationError(
-            // tslint:disable-next-line: max-line-length
-            "Session should be an object that contains expiry as number, sessionKey and sessionExchangeToken property as string",
-        );
-    }
+
+    assertIsSession(session);
+
     if (!isValidString(callbackUrl)) {
-        throw new ParameterValidationError("Parameter callbackUrl should be a non empty string");
+        throw new TypeValidationError("Parameter callbackUrl should be a non empty string");
     }
     // tslint:disable-next-line:max-line-length
     return `${new URL(options.baseUrl).origin}/apps/quark/v1/direct-onboarding?sessionExchangeToken=${session.sessionExchangeToken}&callbackUrl=${encodeURIComponent(callbackUrl)}`;
@@ -110,10 +112,10 @@ const _getGuestAuthorizeUrl = (session: Session, callbackUrl: string, options: D
 
 const _getReceiptUrl = (contractId: string, appId: string) => {
     if (!isValidString(contractId)) {
-        throw new ParameterValidationError("Parameter contractId should be a non empty string");
+        throw new TypeValidationError("Parameter contractId should be a non empty string");
     }
     if (!isValidString(appId)) {
-        throw new ParameterValidationError("Parameter appId should be a non empty string");
+        throw new TypeValidationError("Parameter appId should be a non empty string");
     }
     return `digime://receipt?contractId=${contractId}&appId=${appId}`;
 };
@@ -121,11 +123,11 @@ const _getReceiptUrl = (contractId: string, appId: string) => {
 const _getFileList = async (sessionKey: string, options: DMESDKConfiguration): Promise<GetFileListResponse> => {
     const url = `${options.baseUrl}/permission-access/query/${sessionKey}`;
     const response = await net.get(url, {
-        json: true,
+        responseType: "json",
         retry: options.retryOptions,
     });
 
-    return response.body;
+    return response.body as any;
 };
 
 const _getFile = async (
@@ -167,11 +169,11 @@ const _fetchFile = async (
 ): Promise<GetFileResponse> => {
     const url = `${options.baseUrl}/permission-access/query/${sessionKey}/${fileName}`;
     const response = await net.get(url, {
-        json: true,
+        responseType: "json",
         retry: options.retryOptions,
     });
 
-    const { fileContent, fileMetadata, compression } = response.body;
+    const { fileContent, fileMetadata, compression } = response.body as any;
 
     return {
         compression,
@@ -189,7 +191,7 @@ const _getSessionData = (
 ): GetSessionDataResponse => {
 
     if (!isValidString(sessionKey)) {
-        throw new ParameterValidationError("Parameter sessionKey should be a non empty string");
+        throw new TypeValidationError("Parameter sessionKey should be a non empty string");
     }
 
     let allowPollingToContinue: boolean = true;
@@ -261,15 +263,15 @@ const _getSessionAccounts = async (
     try {
 
         if (!isValidString(sessionKey)) {
-            throw new ParameterValidationError("Parameter sessionKey should be a non empty string");
+            throw new TypeValidationError("Parameter sessionKey should be a non empty string");
         }
 
         const response = await net.get(`${options.baseUrl}/permission-access/query/${sessionKey}/accounts.json`, {
-            json: true,
+            responseType: "json",
             retry: options.retryOptions,
         });
 
-        const { fileContent } = response.body;
+        const { fileContent } = response.body as any;
 
         const key: NodeRSA = new NodeRSA(privateKey, "pkcs1-private-pem");
         const decryptedData: Buffer = decryptData(key, fileContent);
@@ -285,14 +287,14 @@ const _getSessionAccounts = async (
             throw error;
         }
 
-        const errorCode = get(error, "body.error.code");
+        const errorCode = get(error.response.body, "error.code");
 
         if (errorCode === "SDKInvalid") {
-            throw new SDKInvalidError(get(error, "body.error.message"));
+            throw new SDKInvalidError(get(error.response.body, "error.message"));
         }
 
         if (errorCode === "SDKVersionInvalid") {
-            throw new SDKVersionInvalidError(get(error, "body.error.message"));
+            throw new SDKVersionInvalidError(get(error.response.body, "error.message"));
         }
 
         throw error;
@@ -302,7 +304,7 @@ const _getSessionAccounts = async (
 const init = (sdkOptions?: Partial<DMESDKConfiguration>) => {
 
     if (sdkOptions !== undefined && !isPlainObject(sdkOptions)) {
-        throw new ParameterValidationError("SDK options should be object that contains host and version properties");
+        throw new TypeValidationError("SDK options should be object that contains host and version properties");
     }
 
     const options: DMESDKConfiguration = {
@@ -313,11 +315,7 @@ const init = (sdkOptions?: Partial<DMESDKConfiguration>) => {
         ...sdkOptions,
     };
 
-    if (!isConfigurationValid(options)) {
-        throw new ParameterValidationError(
-            "SDK options should be object that contains baseUrl property as string",
-        );
-    }
+    assertIsDMESDKConfiguration(options);
 
     return {
         getFile: (
@@ -406,7 +404,6 @@ const init = (sdkOptions?: Partial<DMESDKConfiguration>) => {
 
 export {
     init,
-    isSessionValid,
     CAScope,
     FileMeta,
     FileSuccessResult,

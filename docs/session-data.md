@@ -25,7 +25,7 @@ To request user data, you'll need to have [created a session](./establish-sessio
 
 
 ## getSessionData
-Once the user has given consent, we can now call `getSessionData` to receive user data. This function polls digi.me until we have received all the data the user has that satisfies the contract. `getSessionData` will return a promise which will resolve when all the files are fetched and a function which you can trigger to stop the data fetch process for whatever reason. 
+Once the user has given consent, we can now call `getSessionData` to receive user data. This function polls digi.me until we have received all the data the user has that satisfies the contract. `getSessionData` will return a promise which will resolve when all the files are fetched and a function which you can trigger to stop the data fetch process for whatever reason.
 ```typescript
 getSessionData = (
     sessionKey: string,
@@ -50,10 +50,10 @@ This callback function is triggered whenever we have received data from the serv
 
 `onFileError`: [FileErrorHandler](#FileErrorHandler)
 
-This callback function is triggered whenever we have failed to receive any data for the data file. By default, we try to fetch the data five times with exponential backoff before invoking the error callback. You can configure the retry options when you initiate the SDK. 
+This callback function is triggered whenever we have failed to receive any data for the data file. By default, we try to fetch the data five times with exponential backoff before invoking the error callback. You can configure the retry options when you initiate the SDK.
 
 #### Exceptions
-[ParameterValidationError](./handling-errors.md)
+[TypeValidationError](./handling-errors.md)
 
 [FileDecryptionError](./handling-errors.md)
 

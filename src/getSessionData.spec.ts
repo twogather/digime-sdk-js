@@ -8,19 +8,16 @@ import NodeRSA from "node-rsa";
 import { basename } from "path";
 import { URL } from "url";
 import * as SDK from ".";
-import {
-    fileContentToCAFormat,
-    loadScopeDefinitions,
-} from "../utils/test-utils";
-import { ParameterValidationError } from "./errors";
+import { fileContentToCAFormat, loadScopeDefinitions } from "../utils/test-utils";
+import { TypeValidationError } from "./errors";
+
+jest.mock("./sleep");
 
 const customSDK = SDK.init({
     baseUrl: "https://api.digi.test/v7",
 });
 
 const testKeyPair: NodeRSA = new NodeRSA({ b: 2048 });
-
-jest.mock("./utils");
 
 beforeEach(() => {
     nock.cleanAll();
@@ -305,7 +302,7 @@ describe.each<[string, ReturnType<typeof SDK.init>, string]>([
                 expect(onFileData).toHaveBeenCalledTimes(3);
             });
 
-            describe("Throws ParameterValidationError when sessionKey (first parameter) is", () => {
+            describe("Throws TypeValidationError when sessionKey (first parameter) is", () => {
                 it.each([true, false, null, undefined, {}, [], 0, NaN, "", () => null, Symbol("test")])(
                     "%p",
                     (sessionKey: any) => {
@@ -314,7 +311,7 @@ describe.each<[string, ReturnType<typeof SDK.init>, string]>([
                             testKeyPair.exportKey("pkcs1-private-pem"),
                             () => null,
                             () => null,
-                        )).toThrow(ParameterValidationError);
+                        )).toThrow(TypeValidationError);
                     },
                 );
             });

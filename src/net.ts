@@ -7,16 +7,20 @@ import got from "got";
 import memoize from "lodash.memoize";
 import path from "path";
 import pkgDir from "pkg-dir";
-import { PeerCertificate } from "tls";
+// import { PeerCertificate } from "tls";
 import { DigiMeSDKError, ServerIdentityError } from "./errors";
 
-type ExtendedGotJSONOptions = got.GotOptions<string | null> & {
-    checkServerIdentity?: (host: string, cert: PeerCertificate) => void;
-};
+// type ExtendedGotJSONOptions = got.GotOptions<string | null> & {
+//     checkServerIdentity?: (host: string, cert: PeerCertificate) => void;
+// };
 
-type ExtendableGot = typeof got & {
-    extend: (options: ExtendedGotJSONOptions) => typeof got;
-};
+// type ExtendedExtendOptions = got.GotOptions<string | null> & {
+//     checkServerIdentity?: (host: string, cert: PeerCertificate) => void;
+// };
+// Array<Got | ExtendOptions>
+// type ExtendableGot = typeof got & {
+//     extend: (options: ExtendedGotJSONOptions) => typeof got;
+// };
 
 interface PinnedHosts {
     [key: string]: PinnedHostCertificate[];
@@ -61,8 +65,8 @@ const packageDir = (): string => {
 
 const defaultPinningDataPath: string = path.resolve(packageDir(), "certificates");
 
-export const net: typeof got = (got as ExtendableGot).extend({
-    checkServerIdentity: (host, cert) => {
+export const net = got.extend({
+    checkServerIdentity: (host: any, cert: any) => {
         const pinnedHosts: PinnedHosts = getPinningData(defaultPinningDataPath);
         const pinnedHost: Buffer[] | undefined = pinnedHosts[host];
 
@@ -81,4 +85,4 @@ export const net: typeof got = (got as ExtendableGot).extend({
             throw new ServerIdentityError("Certificate pinning failed!");
         }
     },
-});
+} as any);
