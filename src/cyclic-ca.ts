@@ -6,7 +6,6 @@ import base64url from "base64url";
 import { HTTPError } from "got";
 import { decode, sign, verify } from "jsonwebtoken";
 import get from "lodash.get";
-import isPlainObject from "lodash.isplainobject";
 import { URLSearchParams } from "url";
 import { getRandomAlphaNumeric, hashSha256 } from "./crypto";
 import { JWTVerificationError, OAuthError, TypeValidationError, SDKInvalidError, SDKVersionInvalidError } from "./errors";
@@ -14,7 +13,9 @@ import { net } from "./net";
 import { getClientPrivateShareDeepLink } from "./paths";
 import { DMESDKConfiguration, Session } from "./sdk";
 import { OngoingAccessAuthorization, OngoingAccessConfiguration, UserAccessToken } from "./types";
-import { isValidString } from "./utils";
+import { isValidString, isPlainObject } from "./utils";
+import isString from "lodash.isstring";
+import { isJWKS } from "./types/jwks";
 
 interface AuthorizeOngoingAccessResponse {
     dataAuthorized: boolean;
@@ -310,22 +311,33 @@ const refreshToken = async (
 };
 
 const getVerifiedJWTPayload = async (token: string, options: DMESDKConfiguration): Promise<any> => {
-    const decodedToken: any = decode(token, {complete: true});
-    const { header}  = decodedToken;
-    const { jku, kid } = header;
+    const decodedToken = decode(token, {complete: true});
+
+    if (!isPlainObject(decodedToken)) {
+        throw new JWTVerificationError("Unexpected JWT payload in token");
+    }
+
+    const jku: unknown = decodedToken?.header?.jku;
+    const kid: unknown = decodedToken?.header?.kid;
+
+    if (!isString(jku) || !isString(kid)) {
+        throw new JWTVerificationError("Unexpected JWT payload in token");
+    }
 
     const jkuResponse = await net.get(jku, {
         responseType: "json",
         retry: options.retryOptions,
     });
 
-    const { keys } = jkuResponse.body as any;
-    const pem = keys
-        .filter((key: any) => key.kid === kid)
-        .map((key: any) => key.pem);
+    if (!isJWKS(jkuResponse.body)) {
+        throw new JWTVerificationError("Server returned non-JWKS response");
+    }
+
+    const pem = jkuResponse.body.keys.filter((key) => key.kid === kid).map((key) => key.pem);
 
     try {
-        return verify(token, pem[0], {algorithms: ["PS512"]});
+        // NOTE: Casting to any as pem is unknown and this will throw anyway
+        return verify(token, pem[0] as any, {algorithms: ["PS512"]});
     } catch (error) {
         throw new JWTVerificationError(get(error, "body.error.message"));
     }
