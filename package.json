@@ -3,10 +3,18 @@
   "version": "2.0.1",
   "description": "digime-js-sdk",
   "main": "dist/main/index.js",
-  "typings": "dist/types/index.d.ts",
+  "types": "dist/types/index.d.ts",
+  "typesVersions": {
+    "<3.8": {
+      "dist/types/*": [
+        "dist/types/ts3.4/*"
+      ]
+    }
+  },
   "module": "dist/module/index.js",
   "scripts": {
-    "build": "npm run clear-dist && npm run build:main && npm run build:module",
+    "add-compatibility-types": "cpr ./dist/types/ ./dist/types/ts3.4/ && cpr ./compatibility-types/ ./dist/types/ -o",
+    "build": "npm run clear-dist && npm run build:main && npm run build:module && npm run add-compatibility-types",
     "build:main": "./node_modules/.bin/tsc -p tsconfig.dist.json",
     "build:module": "./node_modules/.bin/tsc -p tsconfig.module.json",
     "clear-dist": "rimraf ./dist",
@@ -38,6 +46,8 @@
     "@types/lodash.isstring": "~4.0.6",
     "@types/lodash.memoize": "~4.1.6",
     "@types/node": "~12.12.34",
+    "cpr": "~3.0.1",
+    "downlevel-dts": "~0.4.0",
     "jest": "~25.2.7",
     "jest-circus": "~25.2.7",
     "lodash.escaperegexp": "~4.1.2",
