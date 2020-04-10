@@ -2,10 +2,10 @@
  * Copyright (c) 2009-2020 digi.me Limited. All rights reserved.
  */
 
-import { isPlainObject } from "../utils"
+import { isPlainObject } from "../../utils"
 import isInteger from "lodash.isinteger"
 import isString from "lodash.isstring";
-import { TypeValidationError } from "../errors";
+import { TypeValidationError } from "../../errors";
 
 export interface Session {
     expiry: number;

@@ -47,7 +47,7 @@ export interface ServiceObject {
 export interface FileMeta {
     fileData: any;
     fileName: string;
-    fileDescriptor: {
+    fileMetadata: {
         objectCount: number;
         objectType: string;
         serviceGroup: string;

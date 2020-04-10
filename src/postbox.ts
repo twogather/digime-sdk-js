@@ -13,7 +13,7 @@ import { DMESDKConfiguration, Session } from "./sdk";
 import sdkVersion from "./sdk-version";
 import { PushedFileMeta } from "./types";
 import { isValidString } from "./utils";
-import { assertIsSession } from "./types/session";
+import { assertIsSession } from "./types/api/session";
 
 const getCreatePostboxUrl = (appId: string, session: Session, callbackUrl: string) => {
 

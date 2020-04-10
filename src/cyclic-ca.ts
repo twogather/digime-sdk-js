@@ -15,7 +15,7 @@ import { DMESDKConfiguration, Session } from "./sdk";
 import { OngoingAccessAuthorization, OngoingAccessConfiguration, UserAccessToken } from "./types";
 import { isValidString, isPlainObject } from "./utils";
 import isString from "lodash.isstring";
-import { isJWKS } from "./types/jwks";
+import { isJWKS } from "./types/api/jwks";
 
 interface AuthorizeOngoingAccessResponse {
     dataAuthorized: boolean;

@@ -75,7 +75,7 @@ const METHODS: Method[] = ["GET", "POST", "PUT", "PATCH", "HEAD", "DELETE", "OPT
 
 const assertIsMethod: (value: unknown) => asserts value is Method = (value) => {
     const isMethod = METHODS.some((method) => value === method);
-    if (isMethod) {
+    if (!isMethod) {
         throw new TypeValidationError(`Invalid 'assertIsRetryOptions' argument - Property 'methods' on the argument contains an invalid value ${value}`);
     }
 }

@@ -7,7 +7,7 @@ import { TypeValidationError } from "./errors";
 import { Session } from "./sdk";
 import sdkVersion from "./sdk-version";
 import { isValidString } from "./utils";
-import { assertIsSession } from "./types/session";
+import { assertIsSession } from "./types/api/session";
 
 const getAuthorizeUrl = (
     appId: string,

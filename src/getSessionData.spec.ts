@@ -144,7 +144,7 @@ describe.each<[string, ReturnType<typeof SDK.init>, string]>([
                             fileData: (fileDef.response as Dictionary<any>).fileContent,
                             fileName: basename(fileDef.path),
                             fileList,
-                            fileDescriptor: (fileDef.response as Dictionary<any>).fileMetadata,
+                            fileMetadata: (fileDef.response as Dictionary<any>).fileMetadata,
                         }));
                     });
                 });

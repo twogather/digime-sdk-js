@@ -2,8 +2,8 @@
  * Copyright (c) 2009-2020 digi.me Limited. All rights reserved.
  */
 
-import { isPlainObject } from "../utils"
-import { TypeValidationError } from "../errors";
+import { isPlainObject } from "../../utils"
+import { TypeValidationError } from "../../errors";
 
 export interface JWK {
     [key: string]: unknown,
