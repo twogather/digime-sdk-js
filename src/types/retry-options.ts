@@ -2,80 +2,61 @@
  * Copyright (c) 2009-2020 digi.me Limited. All rights reserved.
  */
 
-import { isPlainObject, isNumber } from "../utils"
-import isString from "lodash.isstring";
+import * as t from "io-ts";
 import { TypeValidationError } from "../errors";
-import type { RetryOptions, Method } from "got";
-import isFunction from "lodash.isfunction";
+import type { RetryFunction } from "got";
+import { ThrowReporter } from "io-ts/lib/ThrowReporter";
+import util from "util";
 
-export const isRetryOptions = (value: unknown): value is RetryOptions => {
+const isRetryFunction = (u: unknown): u is RetryFunction => typeof u === 'function';
+
+const RetryFunctionCodec = new t.Type<RetryFunction, unknown, unknown>(
+    'RetryFunctionCodec',
+    isRetryFunction,
+    (u, c) => (isRetryFunction(u) ? t.success(u) : t.failure(u, c)),
+    t.identity,
+);
+
+export const RetryOptionsCodec = t.partial({
+    retries: t.number,
+    limit: t.number,
+    methods: t.array(t.keyof({
+        GET: null,
+        POST: null,
+        PUT: null,
+        PATCH: null,
+        HEAD: null,
+        DELETE: null,
+        OPTIONS: null,
+        TRACE: null,
+        get: null,
+        post: null,
+        put: null,
+        patch: null,
+        head: null,
+        delete: null,
+        options: null,
+        trace: null,
+    })),
+    statusCodes: t.array(t.number),
+    errorCodes: t.array(t.string),
+    calculateDelay: RetryFunctionCodec,
+    maxRetryAfter: t.number,
+});
+
+export type RetryOptions = t.TypeOf<typeof RetryOptionsCodec>;
+
+export const isRetryOptions = RetryOptionsCodec.is;
+
+export const assertIsRetryOptions: (value: unknown, message?: string) => asserts value is RetryOptions = (
+    value,
+    message = "%s",
+) => {
 
     try {
-        assertIsRetryOptions(value);
-    } catch {
-        return false;
-    }
-    return true;
-}
-
-export const assertIsRetryOptions: (value: unknown) => asserts value is RetryOptions = (value) => {
-
-    if (!isPlainObject(value)) {
-        throw new TypeValidationError("Invalid 'assertIsRetryOptions' argument - argument is not a plain object");
+        ThrowReporter.report(RetryOptionsCodec.decode(value));
+    } catch(error) {
+        throw new TypeValidationError(util.format(message, error.message));
     }
 
-    if (value.limit && !isNumber(value.limit)) {
-        throw new TypeValidationError("Invalid 'assertIsRetryOptions' argument - Property 'limit' on the argument is not a number");
-    }
-
-    if (value.methods) {
-        if (!Array.isArray(value.methods)) {
-            throw new TypeValidationError("Invalid 'assertIsRetryOptions' argument - Property 'methods' on the argument is not an array");
-        }
-
-        value.methods.forEach(element => {
-            assertIsMethod(element);
-        });
-    }
-
-    if (value.statusCodes) {
-        if (!Array.isArray(value.statusCodes)) {
-            throw new TypeValidationError("Invalid 'assertIsRetryOptions' argument - Property 'statusCodes' on the argument is not an array");
-        }
-
-        if (!value.statusCodes.every(isNumber)) {
-            throw new TypeValidationError("Invalid 'assertIsRetryOptions' argument - Property 'statusCodes' on the argument is not an array of numbers");
-        }
-    }
-
-    if (value.errorCodes) {
-        if (!Array.isArray(value.errorCodes)) {
-            throw new TypeValidationError("Invalid 'assertIsRetryOptions' argument - Property 'errorCodes' on the argument is not an array");
-        }
-
-        if (!value.errorCodes.every(isString)) {
-            throw new TypeValidationError("Invalid 'assertIsRetryOptions' argument - Property 'errorCodes' on the argument is not an array of strings");
-        }
-    }
-
-    if (value.calculateDelay && !isFunction(value.calculateDelay)) {
-        throw new TypeValidationError("Invalid 'assertIsRetryOptions' argument - Property 'calculateDelay' on the argument is not a function");
-    }
-
-    if (value.maxRetryAfter && !isNumber(value.maxRetryAfter)) {
-        throw new TypeValidationError("Invalid 'assertIsRetryOptions' argument - Property 'maxRetryAfter' on the argument is not a number");
-    }
-
-    if (value.retries && !isNumber(value.retries)) {
-        throw new TypeValidationError("Invalid 'assertIsRetryOptions' argument - Property 'retries' on the argument is not a number");
-    }
-}
-
-const METHODS: Method[] = ["GET", "POST", "PUT", "PATCH", "HEAD", "DELETE", "OPTIONS", "TRACE", "get", "post", "put", "patch", "head", "delete", "options", "trace"];
-
-const assertIsMethod: (value: unknown) => asserts value is Method = (value) => {
-    const isMethod = METHODS.some((method) => value === method);
-    if (!isMethod) {
-        throw new TypeValidationError(`Invalid 'assertIsRetryOptions' argument - Property 'methods' on the argument contains an invalid value ${value}`);
-    }
 }

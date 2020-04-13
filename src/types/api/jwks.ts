@@ -2,37 +2,28 @@
  * Copyright (c) 2009-2020 digi.me Limited. All rights reserved.
  */
 
-import { isPlainObject } from "../../utils"
+import * as t from "io-ts";
 import { TypeValidationError } from "../../errors";
+import { ThrowReporter } from "io-ts/lib/ThrowReporter";
+import util from "util";
 
-export interface JWK {
-    [key: string]: unknown,
-}
+export const JWKSCodec = t.type({
+    keys: t.array(t.UnknownRecord),
+});
 
-export interface JWKS {
-    keys: JWK[]
-}
+export type JWKS = t.TypeOf<typeof JWKSCodec>;
 
-export const isJWKS = (value: unknown): value is JWKS => {
+export const isJWKS = JWKSCodec.is;
+
+export const assertIsJWKS: (value: unknown, message?: string) => asserts value is JWKS = (
+    value,
+    message = "%s",
+) => {
 
     try {
-        assertIsJWKS(value);
-    } catch {
-        return false;
-    }
-    return true;
-}
-
-export const assertIsJWKS: (value: unknown) => asserts value is JWKS = (value) => {
-    if (!isPlainObject(value)) {
-        throw new TypeValidationError("Invalid 'assertIsJWKS' argument - argument is not a plain object");
+        ThrowReporter.report(JWKSCodec.decode(value));
+    } catch(error) {
+        throw new TypeValidationError(util.format(message, error.message));
     }
 
-    if (!Array.isArray(value.keys)) {
-        throw new TypeValidationError("Invalid 'assertIsJWKS' argument - argument.keys is not an array");
-    }
-
-    if (!value.keys.every(isPlainObject)) {
-        throw new TypeValidationError("Invalid 'assertIsJWKS' argument - argument.keys array contains non-object values");
-    }
 }

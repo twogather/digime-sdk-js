@@ -2,42 +2,30 @@
  * Copyright (c) 2009-2020 digi.me Limited. All rights reserved.
  */
 
-import { isPlainObject } from "../../utils"
-import isInteger from "lodash.isinteger"
-import isString from "lodash.isstring";
+import * as t from "io-ts";
+import { ThrowReporter } from "io-ts/lib/ThrowReporter";
 import { TypeValidationError } from "../../errors";
+import util from "util";
 
-export interface Session {
-    expiry: number;
-    sessionKey: string;
-    sessionExchangeToken: string;
-}
+export const SessionCodec = t.type({
+    expiry: t.number,
+    sessionKey: t.string,
+    sessionExchangeToken: t.string,
+});
 
-export const isSession = (value: unknown): value is Session => {
+export type Session = t.TypeOf<typeof SessionCodec>;
+
+export const isSession = SessionCodec.is;
+
+export const assertIsSession: (value: unknown, message?: string) => asserts value is Session = (
+    value,
+    message = "%s",
+) => {
 
     try {
-        assertIsSession(value);
-    } catch {
-        return false;
-    }
-    return true;
-}
-
-export const assertIsSession: (value: unknown) => asserts value is Session = (value) => {
-
-    if (!isPlainObject(value)){
-        throw new TypeValidationError("Invalid 'assertIsSession' argument - argument is not a plain object");
+        ThrowReporter.report(SessionCodec.decode(value));
+    } catch(error) {
+        throw new TypeValidationError(util.format(message, error.message));
     }
 
-    if (!isInteger(value.expiry)){
-        throw new TypeValidationError("Invalid 'assertIsSession' argument - Property 'expiry' on the argument is not an integer");
-    }
-
-    if (!isString(value.sessionKey)){
-        throw new TypeValidationError("Invalid 'assertIsSession' argument - Property 'sessionKey' on the argument is not a string");
-    }
-
-    if (!isString(value.sessionExchangeToken)){
-        throw new TypeValidationError("Invalid 'assertIsSession' argument - Property 'sessionExchangeToken' on the argument is not a string");
-    }
 }

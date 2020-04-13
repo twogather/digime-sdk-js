@@ -2,38 +2,34 @@
  * Copyright (c) 2009-2020 digi.me Limited. All rights reserved.
  */
 
-import { isPlainObject } from "../utils"
-import isString from "lodash.isstring";
+import * as t from "io-ts";
 import { TypeValidationError } from "../errors";
-import { assertIsRetryOptions } from "./retry-options";
-import type { RetryOptions } from "got";
+import { RetryOptionsCodec } from "./retry-options";
+import { ThrowReporter } from "io-ts/lib/ThrowReporter";
+import util from "util";
 
-export interface DMESDKConfiguration {
-    baseUrl: string;
-    retryOptions?: RetryOptions;
-}
+export const DMESDKConfigurationCodec = t.intersection([
+    t.type({
+        baseUrl: t.string,
+    }),
+    t.partial({
+        retryOptions: RetryOptionsCodec,
+    }),
+]);
 
-export const isDMESDKConfiguration = (value: unknown): value is DMESDKConfiguration => {
+export type DMESDKConfiguration = t.TypeOf<typeof DMESDKConfigurationCodec>;
+
+export const isDMESDKConfiguration = DMESDKConfigurationCodec.is;
+
+export const assertIsDMESDKConfiguration: (value: unknown, message?: string) => asserts value is DMESDKConfiguration = (
+    value,
+    message = "%s",
+) => {
 
     try {
-        assertIsDMESDKConfiguration(value);
-    } catch {
-        return false;
-    }
-    return true;
-}
-
-export const assertIsDMESDKConfiguration: (value: unknown) => asserts value is DMESDKConfiguration = (value) => {
-
-    if (!isPlainObject(value)){
-        throw new TypeValidationError("Invalid 'assertIsDMESDKConfiguration' argument - argument is not a plain object");
+        ThrowReporter.report(RetryOptionsCodec.decode(value));
+    } catch(error) {
+        throw new TypeValidationError(util.format(message, error.message));
     }
 
-    if (!isString(value.baseUrl)){
-        throw new TypeValidationError("Invalid 'assertIsDMESDKConfiguration' argument - Property 'baseUrl' on the argument is not a string");
-    }
-
-    if (value.retryOptions) {
-        assertIsRetryOptions(value.retryOptions);
-    }
 }
